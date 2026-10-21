@@ -49,7 +49,17 @@ launchctl bootout gui/$(id -u)/com.lg-remote && rm ~/Library/LaunchAgents/com.lg
 
 On a Raspberry Pi or other Linux box, run `npm start` under systemd or pm2.
 
-**Shorter address:** the `.local` name comes from your computer's name. To shorten it, run `sudo scutil --set LocalHostName tvremote` to get `http://tvremote.local:8080`. If you use [Tailscale](https://tailscale.com), MagicDNS also gives you `http://<machine-name>:8080`, and that address works away from home too.
+### Shorter address
+
+The `.local` address comes from your Mac's local hostname, which is often long (`Johns-MacBook-Pro-2.local`). To shorten it:
+
+```sh
+sudo scutil --set LocalHostName <short-name>
+```
+
+The remote is then at `http://<short-name>.local:8080`. You can make the same change in **System Settings → General → Sharing → Local hostname**.
+
+This only changes the name other devices use to reach your Mac on the local network. AirDrop and Finder keep using the computer name. Anything that used the old `.local` address, such as SSH configs or bookmarks, has to be updated. To undo it, set the name back the same way.
 
 The server only needs to run on a machine on the same network as the TV, and that machine has to be awake. A laptop that sleeps will stop responding.
 
