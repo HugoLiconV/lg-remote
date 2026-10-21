@@ -109,7 +109,13 @@ const actions = {
   toast: ({ message }) => tv.request('ssap://system.notifications/createToast', { message }),
 };
 
-const readBody = (req) => new Promise((resolve) => {
+const STATIC = {
+  '/manifest.webmanifest': 'application/manifest+json',
+  '/apple-touch-icon.png': 'image/png',
+  '/icon-512.png': 'image/png',
+};
+
+const readBody =(req) => new Promise((resolve) => {
   let data = '';
   req.on('data', (c) => (data += c));
   req.on('end', () => resolve(data ? JSON.parse(data) : {}));
@@ -127,9 +133,10 @@ http.createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       return res.end(readFileSync(new URL('./public/index.html', import.meta.url)));
     }
-    if (url.pathname === '/manifest.webmanifest') {
-      res.writeHead(200, { 'content-type': 'application/manifest+json' });
-      return res.end(readFileSync(new URL('./public/manifest.webmanifest', import.meta.url)));
+    const asset = STATIC[url.pathname];
+    if (asset) {
+      res.writeHead(200, { 'content-type': asset, 'cache-control': 'public, max-age=86400' });
+      return res.end(readFileSync(new URL(`./public${url.pathname}`, import.meta.url)));
     }
     if (url.pathname === '/api/status') {
       learnMac();
