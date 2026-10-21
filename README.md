@@ -1,6 +1,6 @@
 # LG Remote
 
-A fast, minimal web remote for LG webOS TVs. Built for the setup where a streaming box (Apple TV) has its own remote, and the TV remote is only needed to **switch HDMI inputs and change the volume**.
+A fast, minimal web remote for LG webOS TVs that runs on your phone. It opens on the things you reach for most, **switching inputs and changing the volume**, and the full remote is one tap away. It's handy if your streaming box or console has its own remote, if you lost the TV remote, or if LG's official app feels too slow.
 
 <img src="docs/minimal.png" width="320" alt="Minimal view: input grid and volume controls">
 
@@ -10,7 +10,7 @@ A fast, minimal web remote for LG webOS TVs. Built for the setup where a streami
 - **Wake-on-LAN** to turn the TV on, with the TV's MAC address learned automatically.
 - **No cloud, no account.** Everything stays on your network. Add it to your phone's home screen and it behaves like an app.
 
-Tested on an LG OLED55B9 (2019, webOS 4.5). Should work on any webOS TV that supports LG's second-screen API (SSAP).
+Should work on any LG webOS TV that supports LG's second-screen API (SSAP). Tested on a 2019 OLED running webOS 4.5.
 
 ## Setup
 
@@ -48,6 +48,10 @@ launchctl bootout gui/$(id -u)/com.lg-remote && rm ~/Library/LaunchAgents/com.lg
 ```
 
 On a Raspberry Pi or other Linux box, run `npm start` under systemd or pm2.
+
+**Shorter address:** the `.local` name comes from your computer's name. To shorten it, run `sudo scutil --set LocalHostName tvremote` to get `http://tvremote.local:8080`. If you use [Tailscale](https://tailscale.com), MagicDNS also gives you `http://<machine-name>:8080`, and that address works away from home too.
+
+The server only needs to run on a machine on the same network as the TV, and that machine has to be awake. A laptop that sleeps will stop responding.
 
 ## How it works
 
