@@ -1,0 +1,17 @@
+{
+  "name": "lg-remote",
+  "version": "1.0.0",
+  "description": "Fast, minimal web remote for LG webOS TVs: one-tap HDMI input switching and volume, with a full remote one tap away.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "ws": "^8.22.0"
+  }
+}

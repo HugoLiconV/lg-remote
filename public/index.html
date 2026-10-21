@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0b0d">
+<link rel="manifest" href="/manifest.webmanifest">
+<title>LG Remote</title>
+<style>
+  :root { --bg:#0b0b0d; --key:#1c1c21; --key-hi:#2a2a31; --fg:#ececf1; --dim:#8a8a96; --accent:#e6007e; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:15px/1.3 -apple-system,system-ui,sans-serif; touch-action:manipulation; }
+  main { max-width:380px; margin:0 auto; padding:calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 16px); display:flex; flex-direction:column; gap:18px; }
+  header { display:flex; align-items:center; justify-content:space-between; }
+  #status { font-size:13px; color:var(--dim); display:flex; align-items:center; gap:6px; }
+  #status::before { content:''; width:8px; height:8px; border-radius:50%; background:#666; }
+  #status.connected::before { background:#3ddc84; }
+  #status.pairing::before, #status.connecting::before { background:#f5b400; }
+  #status.disconnected::before { background:#e5484d; }
+  button { font:inherit; color:inherit; background:var(--key); border:0; border-radius:14px; padding:0; height:52px; cursor:pointer; transition:background .08s, transform .08s; }
+  button:active, button.hit { background:var(--key-hi); transform:scale(.96); }
+  .row { display:grid; gap:10px; }
+  .r3 { grid-template-columns:repeat(3,1fr); } .r4 { grid-template-columns:repeat(4,1fr); }
+  .power { background:#3a1218; color:#ff6b75; }
+  .icon { width:44px; height:36px; border-radius:10px; background:transparent; color:var(--dim); }
+  .dpad { position:relative; width:260px; height:260px; margin:0 auto; border-radius:50%; background:var(--key); }
+  .dpad button { position:absolute; background:transparent; border-radius:0; font-size:22px; color:var(--dim); }
+  .dpad button:active, .dpad button.hit { color:var(--fg); background:rgba(255,255,255,.06); }
+  .up { top:0; left:80px; width:100px; height:80px; border-radius:50% 50% 0 0 !important; }
+  .down { bottom:0; left:80px; width:100px; height:80px; border-radius:0 0 50% 50% !important; }
+  .left { left:0; top:80px; width:80px; height:100px; border-radius:50% 0 0 50% !important; }
+  .right { right:0; top:80px; width:80px; height:100px; border-radius:0 50% 50% 0 !important; }
+  .dpad .ok { left:80px; top:80px; width:100px; height:100px; border-radius:50% !important; background:var(--key-hi); color:var(--fg); font-size:16px; font-weight:600; }
+  .vol { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .pill { display:flex; flex-direction:column; border-radius:14px; overflow:hidden; gap:1px; background:var(--bg); }
+  .pill button { border-radius:0; height:56px; font-size:20px; }
+  .pill span { text-align:center; font-size:11px; color:var(--dim); background:var(--key); padding:4px 0; }
+  #pad { height:150px; border-radius:16px; background:var(--key); display:none; align-items:center; justify-content:center; color:var(--dim); font-size:13px; touch-action:none; }
+  #pad.on { display:flex; }
+  details { background:var(--key); border-radius:14px; padding:12px 14px; }
+  summary { color:var(--dim); cursor:pointer; }
+  .apps { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; }
+  .apps button { height:44px; font-size:13px; padding:0 6px; background:var(--key-hi); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  input { width:100%; font:inherit; color:var(--fg); background:var(--bg); border:1px solid #333; border-radius:10px; padding:10px; margin-top:8px; user-select:text; -webkit-user-select:text; }
+  .setup button { width:100%; margin-top:10px; height:44px; }
+  .hint { color:var(--dim); font-size:12px; margin-top:8px; }
+  section { display:flex; flex-direction:column; gap:18px; }
+  body.mini #full, body.mini .full-only, body:not(.mini) #mini, body:not(.mini) .mini-only { display:none; }
+  /* Minimal view fills exactly one screen: tiles stretch, volume bar is fixed height. */
+  body.mini { overflow:hidden; }
+  body.mini main { height:100dvh; }
+  body.mini #setup:not([open]) { display:none; }
+  body.mini #mini { flex:1; min-height:0; gap:12px; justify-content:flex-end; }
+  #miniPower { color:#ff6b75; font-size:18px; }
+  .tiles { flex:1; min-height:0; display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:minmax(0,1fr); gap:10px; max-height:420px; }
+  .tiles button { height:auto; min-height:64px; border-radius:20px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; font-size:15px; font-weight:600; color:var(--dim); border:2px solid transparent; }
+  .tiles button:last-child:nth-child(odd) { grid-column:span 2; flex-direction:row; gap:12px; }
+  .tiles svg { width:30px; height:30px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+  .tiles button.active { color:var(--fg); border-color:var(--accent); background:#241621; }
+  .volbar { display:grid; grid-template-columns:1fr 1.1fr 1fr; gap:10px; }
+  .volbar button { height:88px; border-radius:20px; font-size:34px; font-weight:300; }
+  #volLevel { position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; gap:6px; font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; }
+  #volLevel > * { position:relative; }
+  .spk { width:30px; height:30px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .spk path:first-child { fill:currentColor; }
+  .spk .off, #volLevel.muted .spk .on { display:none; }
+  #volLevel.muted .spk .off { display:inline; }
+  #volLevel.muted { color:#ff6b75; }
+  #volFill { position:absolute !important; left:0; bottom:0; top:0; width:0; background:#2c2c34; transition:width .12s; }
+  #toast { position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom) + 20px); transform:translateX(-50%); background:#2a2a31; padding:8px 14px; border-radius:10px; font-size:13px; opacity:0; transition:opacity .2s; pointer-events:none; }
+  #toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div id="status">…</div>
+    <div>
+      <button class="icon full-only" id="padToggle" title="Touchpad">◎</button>
+      <button class="icon full-only" data-key="MENU" title="Settings">⚙</button>
+      <button class="icon mini-only" id="miniPower" title="Power">⏻</button>
+      <button class="icon" id="modeBtn" title="Switch view">More</button>
+    </div>
+  </header>
+
+  <section id="mini">
+    <div class="tiles" id="tiles"></div>
+    <div class="volbar">
+      <button id="volDown" aria-label="Volume down">−</button>
+      <button id="volLevel" aria-label="Mute">
+        <i id="volFill"></i>
+        <svg viewBox="0 0 24 24" class="spk"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="on" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="off" d="M16 9l6 6M22 9l-6 6"/></svg>
+        <span id="volNum"></span>
+      </button>
+      <button id="volUp" aria-label="Volume up">+</button>
+    </div>
+  </section>
+
+  <section id="full">
+  <div class="row r3">
+    <button class="power" id="power">⏻</button>
+    <button data-key="INFO">Info</button>
+    <button id="inputBtn">Input</button>
+  </div>
+
+  <div class="dpad">
+    <button class="up" data-key="UP" data-repeat>▲</button>
+    <button class="left" data-key="LEFT" data-repeat>◀</button>
+    <button class="ok" data-key="ENTER">OK</button>
+    <button class="right" data-key="RIGHT" data-repeat>▶</button>
+    <button class="down" data-key="DOWN" data-repeat>▼</button>
+  </div>
+
+  <div id="pad">Drag to move · tap to click · two fingers to scroll</div>
+
+  <div class="row r3">
+    <button data-key="BACK">↩ Back</button>
+    <button data-key="HOME">⌂ Home</button>
+    <button data-key="EXIT">Exit</button>
+  </div>
+
+  <div class="vol">
+    <div class="pill">
+      <button data-action="volumeUp" data-repeat>+</button>
+      <span>VOL</span>
+      <button data-action="volumeDown" data-repeat>−</button>
+    </div>
+    <div class="pill">
+      <button data-key="CHANNELUP" data-repeat>⌃</button>
+      <span>CH</span>
+      <button data-key="CHANNELDOWN" data-repeat>⌄</button>
+    </div>
+  </div>
+
+  <div class="row r4">
+    <button data-key="REWIND">⏪</button>
+    <button data-key="PLAY">▶</button>
+    <button data-key="PAUSE">⏸</button>
+    <button data-key="FASTFORWARD">⏩</button>
+  </div>
+
+  <div class="row r3">
+    <button data-action="mute">Mute</button>
+    <button id="kbdBtn">Keyboard</button>
+    <button data-key="STOP">⏹ Stop</button>
+  </div>
+
+  <details id="appsBox">
+    <summary>Apps</summary>
+    <div class="apps" id="apps"></div>
+  </details>
+
+  <details id="inputsBox">
+    <summary>Inputs</summary>
+    <div class="apps" id="inputs"></div>
+  </details>
+  </section>
+
+  <details class="setup" id="setup">
+    <summary>Setup</summary>
+    <input id="ip" placeholder="TV IP address (e.g. 192.168.1.50)" inputmode="decimal">
+    <button id="findBtn">Find TV on network</button>
+    <button id="saveBtn">Connect</button>
+    <div class="hint">First connect shows a prompt on the TV. Without a remote, use the joystick button under the bottom-center of the TV to choose “Allow”.</div>
+  </details>
+</main>
+<div id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let state = {};
+
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+async function api(action, body = {}) {
+  const res = await fetch('/api/' + action, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) { toast(data.error); throw new Error(data.error); }
+  return data.result;
+}
+
+const press = (el) => el.dataset.key ? api('button', { name: el.dataset.key }) : api(el.dataset.action);
+
+// Fire on pointerdown for instant feel; hold to repeat on arrows/volume.
+document.querySelectorAll('[data-key],[data-action]').forEach((el) => {
+  let timer;
+  const stop = () => { clearTimeout(timer); clearInterval(timer); };
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    navigator.vibrate?.(8);
+    press(el).catch(() => {});
+    if (el.hasAttribute('data-repeat')) timer = setTimeout(() => (timer = setInterval(() => press(el).catch(() => {}), 120)), 400);
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => el.addEventListener(ev, stop));
+});
+
+const togglePower = () => { navigator.vibrate?.(8); api('power').then((r) => toast(r === 'off' ? 'Turning off' : 'Waking TV…')).catch(() => {}); };
+$('#power').onclick = togglePower;
+$('#miniPower').onclick = togglePower;
+
+// View mode: minimal by default, remembered per device.
+const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+function setMode(mode) {
+  document.body.classList.toggle('mini', mode === 'mini');
+  $('#modeBtn').textContent = mode === 'mini' ? 'More' : 'Less';
+  store.set('mode', mode);
+}
+setMode(store.get('mode') || 'mini');
+$('#modeBtn').onclick = () => setMode(document.body.classList.contains('mini') ? 'full' : 'mini');
+
+// Minimal view: input tiles + volume. Local actions win over polled state briefly to avoid flicker.
+let lastLocal = 0;
+let tilesLoaded = false;
+// Outline icons picked by input name.
+const ICONS = {
+  game: '<path d="M7 8h10a4 4 0 0 1 4 4.5l-.6 3.6a2.3 2.3 0 0 1-4 1L15 15H9l-1.4 2.1a2.3 2.3 0 0 1-4-1L3 12.5A4 4 0 0 1 7 8z"/><path d="M7.5 11v3M6 12.5h3"/><circle cx="16" cy="11.5" r=".6"/><circle cx="17.5" cy="13.5" r=".6"/>',
+  streamer: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="M10.5 8.2l3.5 1.8-3.5 1.8z"/>',
+  speaker: '<rect x="6" y="3" width="12" height="18" rx="2.5"/><circle cx="12" cy="14" r="3.2"/><circle cx="12" cy="7" r="1"/>',
+  av: '<circle cx="7" cy="12" r="3"/><circle cx="17" cy="12" r="3"/><path d="M7 9V5M17 9V5"/>',
+  hdmi: '<path d="M3 8h18v5l-2 3H5l-2-3z"/><path d="M7 11h10"/>',
+};
+function iconFor(label) {
+  const l = label.toLowerCase();
+  if (/ps\d|playstation|xbox|switch|game/.test(l)) return ICONS.game;
+  if (/apple|chromecast|roku|fire|shield|tv/.test(l)) return ICONS.streamer;
+  if (/sonos|sound|bar|receiver|arc|audio/.test(l)) return ICONS.speaker;
+  if (/^av|component|composite/.test(l)) return ICONS.av;
+  return ICONS.hdmi;
+}
+async function loadTiles() {
+  if (tilesLoaded) return;
+  tilesLoaded = true;
+  let all;
+  try { all = await api('inputs'); } catch (err) { tilesLoaded = false; throw err; }
+  $('#tiles').replaceChildren(...all.map(({ id, label }) => {
+    const b = document.createElement('button');
+    b.innerHTML = `<svg viewBox="0 0 24 24">${iconFor(label)}</svg><span></span>`;
+    b.querySelector('span').textContent = label; b.dataset.id = id;
+    b.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); navigator.vibrate?.(8);
+      lastLocal = Date.now(); renderInput(id);
+      api('setInput', { id }).catch(() => {});
+    });
+    return b;
+  }));
+  renderInput(state.input);
+}
+const renderInput = (id) => document.querySelectorAll('#tiles button').forEach((b) => b.classList.toggle('active', b.dataset.id === id));
+
+function renderVolume(volume, muted) {
+  $('#volLevel').classList.toggle('muted', !!muted);
+  // Volume reads 0 when audio goes out over ARC (e.g. Sonos): show only the speaker icon then.
+  const show = volume > 0;
+  $('#volNum').textContent = show ? volume : '';
+  $('#volFill').style.width = show ? Math.min(volume, 100) + '%' : '0';
+}
+
+function holdRepeat(el, fn) {
+  let timer;
+  const stop = () => { clearTimeout(timer); clearInterval(timer); };
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); navigator.vibrate?.(8); fn();
+    timer = setTimeout(() => (timer = setInterval(fn, 110)), 380);
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => el.addEventListener(ev, stop));
+}
+const nudgeVolume = (delta) => {
+  lastLocal = Date.now();
+  if (state.volume > 0) { state.volume = Math.max(0, Math.min(100, state.volume + delta)); state.muted = false; renderVolume(state.volume, false); }
+  api(delta > 0 ? 'volumeUp' : 'volumeDown').catch(() => {});
+};
+holdRepeat($('#volUp'), () => nudgeVolume(1));
+holdRepeat($('#volDown'), () => nudgeVolume(-1));
+$('#volLevel').addEventListener('pointerdown', (e) => {
+  e.preventDefault(); navigator.vibrate?.(8);
+  lastLocal = Date.now(); state.muted = !state.muted; renderVolume(state.volume, state.muted);
+  api('mute').catch(() => {});
+});
+
+$('#inputBtn').onclick = () => { $('#inputsBox').open = true; loadInputs(); $('#inputsBox').scrollIntoView({ behavior: 'smooth' }); };
+
+$('#kbdBtn').onclick = () => {
+  const value = window.prompt('Text to type on TV');
+  if (value) api('text', { value });
+};
+
+// Touchpad
+$('#padToggle').onclick = () => $('#pad').classList.toggle('on');
+(() => {
+  const pad = $('#pad'); let last = null, moved = false, queued = { dx: 0, dy: 0 }, sending = false;
+  const flush = async () => {
+    if (sending || (!queued.dx && !queued.dy)) return;
+    const { dx, dy, scroll } = queued; queued = { dx: 0, dy: 0 }; sending = true;
+    try { await api(scroll ? 'scroll' : 'move', { dx: Math.round(dx), dy: Math.round(dy) }); } catch {}
+    sending = false; flush();
+  };
+  pad.addEventListener('touchstart', (e) => { last = e.touches[0]; moved = false; }, { passive: true });
+  pad.addEventListener('touchmove', (e) => {
+    const t = e.touches[0]; const dx = (t.clientX - last.clientX) * 1.5, dy = (t.clientY - last.clientY) * 1.5;
+    last = t; moved = true;
+    queued.dx += dx; queued.dy += dy; queued.scroll = e.touches.length > 1;
+    flush();
+  }, { passive: true });
+  pad.addEventListener('touchend', () => { if (!moved) api('click').catch(() => {}); });
+})();
+
+async function loadApps() {
+  if ($('#apps').childElementCount) return;
+  const apps = await api('apps');
+  apps.sort((a, b) => a.title.localeCompare(b.title));
+  $('#apps').replaceChildren(...apps.map(({ id, title }) => {
+    const b = document.createElement('button'); b.textContent = title;
+    b.onclick = () => api('launch', { id }); return b;
+  }));
+}
+async function loadInputs() {
+  if ($('#inputs').childElementCount) return;
+  const inputs = await api('inputs');
+  $('#inputs').replaceChildren(...inputs.map(({ id, label }) => {
+    const b = document.createElement('button'); b.textContent = label;
+    b.onclick = () => api('setInput', { id }); return b;
+  }));
+}
+$('#appsBox').addEventListener('toggle', (e) => e.target.open && loadApps().catch(() => {}));
+$('#inputsBox').addEventListener('toggle', (e) => e.target.open && loadInputs().catch(() => {}));
+
+$('#findBtn').onclick = async () => {
+  toast('Searching…');
+  const { ips } = await (await fetch('/api/discover')).json();
+  if (ips.length) { $('#ip').value = ips[0]; toast('Found ' + ips[0]); } else toast('No TV found — enter IP manually');
+};
+$('#saveBtn').onclick = () => api('config', { ip: $('#ip').value.trim() }).then(() => toast('Connecting… check the TV'));
+
+// Desktop keyboard shortcuts
+const keymap = { ArrowUp:'UP', ArrowDown:'DOWN', ArrowLeft:'LEFT', ArrowRight:'RIGHT', Enter:'ENTER', Backspace:'BACK', Escape:'BACK', h:'HOME', ' ':'PAUSE' };
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (keymap[e.key]) { e.preventDefault(); api('button', { name: keymap[e.key] }).catch(() => {}); }
+  else if (e.key === '+' || e.key === '=') api('volumeUp').catch(() => {});
+  else if (e.key === '-') api('volumeDown').catch(() => {});
+  else if (e.key === 'm') api('mute').catch(() => {});
+});
+
+async function poll() {
+  try {
+    const next = await (await fetch('/api/status')).json();
+    if (Date.now() - lastLocal < 1500) Object.assign(next, { input: state.input, volume: state.volume, muted: state.muted });
+    state = next;
+    if (state.status === 'connected') {
+      loadTiles().catch(() => {});
+      renderInput(state.input);
+      renderVolume(state.volume, state.muted);
+    } else tilesLoaded = false;
+    const s = $('#status');
+    s.className = state.status;
+    s.textContent = state.ip ? `${state.status} · ${state.ip}` : 'not set up';
+    if (!state.ip) $('#setup').open = true;
+    else if (!$('#ip').value) $('#ip').value = state.ip;
+  } catch { $('#status').className = 'disconnected'; $('#status').textContent = 'server offline'; }
+  clearTimeout(poll.timer);
+  poll.timer = setTimeout(poll, 2000);
+}
+document.addEventListener('visibilitychange', () => !document.hidden && poll());
+poll();
+</script>
+</body>
+</html>
